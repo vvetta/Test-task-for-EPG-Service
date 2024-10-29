@@ -160,3 +160,7 @@ async def send_mutual_match_email(current_user: CreateClientSchema, target_clien
     await send_email(target_client.email, "Взаимная симпатия!", message_to_target_client)
 
     return {"message": "Mutual match!", "target_email": target_client.email}
+
+
+def get_cache_key(sort_order: str, current_user, **kwargs) -> str:
+    return f"{current_user.id if current_user else 'anon'}:{sort_order}:{kwargs}"

@@ -1,15 +1,21 @@
 from io import BytesIO
 from typing import List
+from functools import partial
 from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy import and_, desc, asc
+from cachetools import TTLCache, cached
 from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from src.api.settings import DAILY_LIKE_LIMIT
 from src.api.models import Client, Match
 from src.api.schemas import ClientSchema, CreateClientSchema
-from src.api.utils import save_client_photo, calculate_distance, send_mutual_match_email
+from src.api.utils import save_client_photo, calculate_distance, send_mutual_match_email, get_cache_key
+
+
+client_cache = TTLCache(maxsize=100, ttl=60)
 
 
 async def create_client_db(
@@ -28,6 +34,7 @@ async def create_client_db(
         raise HTTPException(status_code=403, detail="An error occurred while creating a new user.")
 
 
+@cached(cache=client_cache, key=partial(get_cache_key))
 async def get_clients_db(
         session: AsyncSession,
         sort_order: str | None,
