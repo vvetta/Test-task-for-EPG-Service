@@ -14,7 +14,7 @@ async def create_client_db(
         photo: BytesIO) -> ClientSchema:
 
     client = Client(**client.model_dump())
-    client.photo = await save_client_photo(photo)
+    client.photo = await save_client_photo(photo, client.email)
 
     session.add(client)
 

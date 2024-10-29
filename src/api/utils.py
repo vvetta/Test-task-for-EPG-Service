@@ -1,5 +1,7 @@
+import os
 import hashlib
 import asyncio
+import aiofiles
 
 from io import BytesIO
 from fastapi import UploadFile
@@ -41,3 +43,14 @@ def sync_add_watermark(photo: UploadFile, watermark_text: str) -> BytesIO:
     output.seek(0)
 
     return output
+
+
+async def save_client_photo(photo: BytesIO, client_email: str) -> str:
+    os.makedirs("client_photos", exist_ok=True)
+
+    filepath = os.path.join("client_photos", f"{client_email}.jpeg")
+
+    async with aiofiles.open(filepath, 'wb') as f:
+        await f.write(photo.read())
+
+    return filepath
