@@ -6,7 +6,7 @@ from sqlalchemy import and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.models import Client
-from src.api.utils import save_client_photo
+from src.api.utils import save_client_photo, calculate_distance
 from src.api.schemas import ClientSchema, CreateClientSchema
 
 
@@ -14,7 +14,6 @@ async def create_client_db(
         session: AsyncSession,
         client: CreateClientSchema,
         photo: BytesIO) -> ClientSchema:
-
     client = Client(**client.model_dump())
     client.photo = await save_client_photo(photo, client.email)
 
@@ -30,8 +29,8 @@ async def create_client_db(
 async def get_clients_db(
         session: AsyncSession,
         sort_order: str | None,
+        current_user: CreateClientSchema | None,
         **kwargs) -> List[ClientSchema] | CreateClientSchema:
-
     query = select(Client)
 
     filters = []
@@ -59,5 +58,21 @@ async def get_clients_db(
 
     result = await session.execute(query)
     clients = result.scalars().all()
+
+    if kwargs.get('distance'):
+        if not current_user:
+            raise HTTPException(status_code=401, detail="You are not authorized!")
+
+        if current_user.latitude is None or current_user.longitude is None:
+            raise HTTPException(status_code=400, detail="Current user location is not set.")
+
+        clients_in_range = [
+            ClientSchema.from_orm(client) for client in clients
+            if client.latitude is not None and client.longitude is not None
+               and calculate_distance(current_user.latitude, current_user.longitude, client.latitude,
+                                      client.longitude) <= kwargs['distance']
+        ]
+
+        return clients_in_range
 
     return [ClientSchema.from_orm(client) for client in clients]
