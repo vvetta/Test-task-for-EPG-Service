@@ -17,3 +17,14 @@ class ClientSchema(BaseModel):
 class CreateClientSchema(ClientSchema):
 
     password: str
+
+
+class LoginClientSchema(BaseModel):
+
+    email: EmailStr
+    password: str
+
+
+class AuthTokenSchema(BaseModel):
+
+    auth_token: str

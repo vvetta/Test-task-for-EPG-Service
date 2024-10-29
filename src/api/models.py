@@ -7,7 +7,7 @@ from src.api.database import BaseModel
 class Client(BaseModel):
 
     first_name = mapped_column(String(length=64), nullable=True)
-    second_name = mapped_column(String(length=64), nullable=True)
+    last_name = mapped_column(String(length=64), nullable=True)
     email = mapped_column(String(length=64), nullable=False, unique=True)
     gender = mapped_column(String(length=10), nullable=True, default="не выбрано")
     photo = mapped_column(String(length=256), nullable=True)

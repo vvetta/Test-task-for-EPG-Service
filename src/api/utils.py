@@ -1,13 +1,16 @@
 import os
+import jwt
 import hashlib
 import asyncio
 import aiofiles
 
 from io import BytesIO
 from fastapi import UploadFile
+from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 from concurrent.futures import ThreadPoolExecutor
 
+from src.api.settings import ALGORITHM, public_key, private_key, ACCESS_TOKEN_LIFE_TIME_MINUTES
 
 executor = ThreadPoolExecutor()
 
@@ -54,3 +57,23 @@ async def save_client_photo(photo: BytesIO, client_email: str) -> str:
         await f.write(photo.read())
 
     return filepath
+
+
+def encode_jwt(payload: dict, private_key: str = private_key,
+               algorithm: str = ALGORITHM,
+               expire_minutes: int = ACCESS_TOKEN_LIFE_TIME_MINUTES) -> str:
+
+    now = datetime.utcnow()
+    expire = now + timedelta(minutes=expire_minutes)
+    payload.update(exp=expire, iat=now)
+    encoded = jwt.encode(payload, private_key, algorithm)
+
+    return encoded
+
+
+def decode_jwt(token: str, public_key: str = public_key,
+               algorithm: str = ALGORITHM) -> dict:
+
+    decoded = jwt.decode(token, public_key, algorithms=[algorithm])
+
+    return decoded

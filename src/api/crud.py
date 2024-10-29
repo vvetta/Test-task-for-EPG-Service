@@ -27,11 +27,19 @@ async def create_client_db(
         raise HTTPException(status_code=403, detail="An error occurred while creating a new user.")
 
 
-async def get_clients_db(session: AsyncSession, sort_order: str | None,  **kwargs) -> List[ClientSchema]:
+async def get_clients_db(
+        session: AsyncSession,
+        sort_order: str | None,
+        **kwargs) -> List[ClientSchema] | CreateClientSchema:
 
     query = select(Client)
 
     filters = []
+    if kwargs.get('email'):
+        result = await session.execute(query.where(Client.email == kwargs['email']))
+        client = result.fetchone()
+        return CreateClientSchema.from_orm(client)
+
     if kwargs.get('gender'):
         filters.append(Client.gender == kwargs['gender'])
     if kwargs.get('first_name'):
