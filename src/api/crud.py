@@ -2,7 +2,7 @@ from io import BytesIO
 from typing import List
 from functools import partial
 from datetime import datetime
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy import and_, desc, asc
 from cachetools import TTLCache, cached
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.settings import DAILY_LIKE_LIMIT
 from src.api.models import Client, Match
 from src.api.schemas import ClientSchema, CreateClientSchema
-from src.api.utils import save_client_photo, calculate_distance, send_mutual_match_email, get_cache_key
+from src.api.utils import save_client_photo, calculate_distance, send_mutual_match_email, get_cache_key, decode_jwt
 
 
 client_cache = TTLCache(maxsize=100, ttl=60)
@@ -146,3 +146,18 @@ async def create_match_db(
         return result
 
     return {'message': 'Match sent!'}
+
+
+async def get_current_user(request: Request, session: AsyncSession) -> CreateClientSchema | None:
+    auth_token = request.cookies.get("auth_token")
+
+    if not auth_token:
+        return None
+
+    current_user = await get_clients_db(
+        session,
+        None,
+        None,
+        email=decode_jwt(auth_token)['email'])
+
+    return current_user

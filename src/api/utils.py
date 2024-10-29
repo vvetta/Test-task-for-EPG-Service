@@ -13,12 +13,10 @@ from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 from jwt.exceptions import InvalidTokenError
 from email.mime.multipart import MIMEMultipart
-from sqlalchemy.ext.asyncio import AsyncSession
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import UploadFile, Request, HTTPException
+from fastapi import UploadFile, HTTPException
 
 from src.api.models import Client
-from src.api.crud import get_clients_db
 from src.api.schemas import CreateClientSchema
 from src.api.settings import ALGORITHM, public_key, private_key, ACCESS_TOKEN_LIFE_TIME_MINUTES, \
     SENDER_EMAIL, SENDER_PASSWORD, SMTP_SERVER, SMTP_PORT
@@ -108,21 +106,6 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
     return r * c
-
-
-async def get_current_user(request: Request, session: AsyncSession) -> CreateClientSchema | None:
-    auth_token = request.cookies.get("auth_token")
-
-    if not auth_token:
-        return None
-
-    current_user = await get_clients_db(
-        session,
-        None,
-        None,
-        email=decode_jwt(auth_token)['email'])
-
-    return current_user
 
 
 async def send_email(recipient_email: EmailStr, subject: str, body: str):

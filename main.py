@@ -5,14 +5,13 @@ from typing import List, Literal
 from fastapi import FastAPI, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.crud import get_clients_db
+from src.api.crud import get_clients_db, get_current_user
 from src.api.database import get_session
 from src.api.schemas import ClientSchema
 from src.api.router import router as client_router
-from src.api.utils import get_current_user
 
 
-app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json")
+app = FastAPI(root_path="/api", docs_url='/docs', openapi_url='/openapi.json')
 
 app.include_router(client_router)
 

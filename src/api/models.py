@@ -30,7 +30,7 @@ class Match(BaseModel):
     user_id = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
     target_user_id = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
 
-    __table_args__ = (UniqueConstraint("user_id", "target_user_id", name="unique_match"))
+    __table_args__ = (UniqueConstraint("user_id", "target_user_id", name="unique_match"),)
 
     user = relationship("Client", foreign_keys=[user_id], back_populates="given_matches")
     target_user = relationship("Client", foreign_keys=[target_user_id], back_populates="received_matches")

@@ -1,10 +1,11 @@
+from typing import Literal
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Form, File, UploadFile, Depends, Response, HTTPException, Request
 
-from src.api.utils import hash_password, add_watermark, encode_jwt, get_current_user
+from src.api.utils import hash_password, add_watermark, encode_jwt
 from src.api.database import get_session
-from src.api.crud import create_client_db, get_clients_db, create_match_db
+from src.api.crud import create_client_db, get_clients_db, create_match_db, get_current_user
 from src.api.schemas import CreateClientSchema, ClientSchema, LoginClientSchema, AuthTokenSchema
 
 
@@ -15,12 +16,25 @@ router = APIRouter(prefix="/clients", tags=["Clients"])
 async def create_client(
         email: EmailStr = Form(...),
         password: str = Form(...),
+        first_name: str = Form(...),
+        last_name: str = Form(...),
+        longitude: float = Form(...),
+        latitude: float = Form(...),
+        gender: Literal['male', 'female'] = Form(...),
         photo: UploadFile = File(...),
         session: AsyncSession = Depends(get_session)) -> ClientSchema:
 
     client = CreateClientSchema(
         email=email,
-        password=hash_password(password))
+        password=hash_password(password),
+        photo=None,
+        id=None,
+        first_name=first_name,
+        last_name=last_name,
+        longitude=longitude,
+        latitude=latitude,
+        gender=gender
+    )
 
     photo_w_wm = await add_watermark(photo)
 
