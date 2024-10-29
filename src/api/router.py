@@ -35,7 +35,7 @@ async def login(login_payload: LoginClientSchema,
                 session: AsyncSession = Depends(get_session)) -> AuthTokenSchema:
     """Эндпоинт авторизации клиента. По-хорошему он должен находится в отдельном сервисе."""
 
-    client = await get_clients_db(session, None, email=login_payload.email)
+    client = await get_clients_db(session, None, None, email=login_payload.email)
     if not client or client.password != hash_password(login_payload.password):
         raise HTTPException(status_code=401, detail="User not found!")
 
