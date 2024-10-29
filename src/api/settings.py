@@ -26,3 +26,12 @@ def get_public_key() -> str:
 
 private_key = get_private_key()
 public_key = get_public_key()
+
+
+DAILY_LIKE_LIMIT = 5
+
+
+SENDER_EMAIL = os.getenv('SENDER_EMAIL')
+SENDER_PASSWORD = os.getenv('SENDER_PASSWORD')
+SMTP_SERVER = os.getenv('SMTP_SERVER')
+SMTP_PORT = os.getenv('SMTP_PORT')

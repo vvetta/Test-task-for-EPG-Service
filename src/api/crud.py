@@ -1,13 +1,15 @@
 from io import BytesIO
 from typing import List
+from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy import and_, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.models import Client
-from src.api.utils import save_client_photo, calculate_distance
+from src.api.settings import DAILY_LIKE_LIMIT
+from src.api.models import Client, Match
 from src.api.schemas import ClientSchema, CreateClientSchema
+from src.api.utils import save_client_photo, calculate_distance, send_mutual_match_email
 
 
 async def create_client_db(
@@ -76,3 +78,64 @@ async def get_clients_db(
         return clients_in_range
 
     return [ClientSchema.from_orm(client) for client in clients]
+
+
+async def check_mutual_match(session: AsyncSession, target_client: Client, current_user: CreateClientSchema) -> bool:
+    mutual_match = await session.execute(
+        select(Match).where(
+            Match.user_id == target_client.id,
+            Match.target_user_id == current_user.id
+        )
+    )
+    mutual_match = mutual_match.scalars().first()
+
+    if mutual_match:
+        return True
+    return False
+
+
+async def create_match_db(
+        id: int,
+        current_user: CreateClientSchema | None,
+        session: AsyncSession) -> dict:
+
+    if current_user.id == id:
+        raise HTTPException(status_code=403, detail="You can't evaluate yourself!")
+
+    target_client = await session.get(Client, id)
+
+    if not target_client:
+        raise HTTPException(status_code=404, detail="The client you want to send sympathy to is not there!")
+
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    daily_likes_count = await session.execute(select(Match).where(
+            Match.user_id == current_user.id,
+            Match.time_created >= today_start
+        )
+    )
+
+    if daily_likes_count.scalars().count() >= DAILY_LIKE_LIMIT:
+        raise HTTPException(status_code=400, detail="Daily like limit reached.")
+
+    match = await session.execute(select(Match).where(
+            Match.user_id == current_user.id,
+            Match.target_user_id == target_client.id
+        )
+    )
+    match = match.scalars().first()
+
+    if not match:
+        match = Match(user_id=current_user.id, target_user_id=target_client.id)
+        session.add(match)
+    else:
+        raise HTTPException(status_code=400, detail="You have already matched this client.")
+
+    await session.commit()
+
+    mutual_match = await check_mutual_match(session, target_client, current_user)
+
+    if mutual_match:
+        result = await send_mutual_match_email(current_user, target_client)
+        return result
+
+    return {'message': 'Match sent!'}

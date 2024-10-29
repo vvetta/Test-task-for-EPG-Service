@@ -1,5 +1,5 @@
-from sqlalchemy import String, Float
-from sqlalchemy.orm import mapped_column
+from sqlalchemy import String, Float, Integer, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import mapped_column, relationship
 
 from src.api.database import BaseModel
 
@@ -21,3 +21,16 @@ class Client(BaseModel):
     longitude = mapped_column(Float, nullable=True)
     latitude = mapped_column(Float, nullable=True)
 
+    given_matches = relationship("Match", foreign_keys="[Match.user_id]", back_populates="user")
+    received_matches = relationship("Match", foreign_keys="[Match.target_user_id]", back_populates="target_user")
+
+
+class Match(BaseModel):
+
+    user_id = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    target_user_id = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "target_user_id", name="unique_match"))
+
+    user = relationship("Client", foreign_keys=[user_id], back_populates="given_matches")
+    target_user = relationship("Client", foreign_keys=[target_user_id], back_populates="received_matches")

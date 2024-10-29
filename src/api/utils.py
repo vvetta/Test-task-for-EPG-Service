@@ -4,18 +4,24 @@ import math
 import hashlib
 import asyncio
 import aiofiles
+import aiosmtplib
 
 from io import BytesIO
+from pydantic import EmailStr
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 from jwt.exceptions import InvalidTokenError
+from email.mime.multipart import MIMEMultipart
 from sqlalchemy.ext.asyncio import AsyncSession
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import UploadFile, Request, HTTPException
 
+from src.api.models import Client
 from src.api.crud import get_clients_db
 from src.api.schemas import CreateClientSchema
-from src.api.settings import ALGORITHM, public_key, private_key, ACCESS_TOKEN_LIFE_TIME_MINUTES
+from src.api.settings import ALGORITHM, public_key, private_key, ACCESS_TOKEN_LIFE_TIME_MINUTES, \
+    SENDER_EMAIL, SENDER_PASSWORD, SMTP_SERVER, SMTP_PORT
 
 executor = ThreadPoolExecutor()
 
@@ -113,6 +119,44 @@ async def get_current_user(request: Request, session: AsyncSession) -> CreateCli
     current_user = await get_clients_db(
         session,
         None,
+        None,
         email=decode_jwt(auth_token)['email'])
 
     return current_user
+
+
+async def send_email(recipient_email: EmailStr, subject: str, body: str):
+
+    message = MIMEMultipart()
+    message["From"] = SENDER_EMAIL
+    message["To"] = recipient_email
+    message["Subject"] = subject
+
+    message.attach(MIMEText(body, "plain"))
+
+    try:
+        await aiosmtplib.send(
+            message,
+            hostname=SMTP_SERVER,
+            port=SMTP_PORT,
+            start_tls=True,
+            username=SENDER_EMAIL,
+            password=SENDER_PASSWORD
+        )
+        print(f"Email sent to {recipient_email}")
+    except aiosmtplib.SMTPException as e:
+        raise HTTPException(status_code=400, detail=f"Failed to send email to {recipient_email}: {e}")
+
+
+async def send_mutual_match_email(current_user: CreateClientSchema, target_client: Client) -> dict:
+    message_to_current_user = (
+        f"Вы понравились {target_client.first_name}! Почта участника: {target_client.email}"
+    )
+    message_to_target_client = (
+        f"Вы понравились {current_user.first_name}! Почта участника: {current_user.email}"
+    )
+
+    await send_email(current_user.email, "Взаимная симпатия!", message_to_current_user)
+    await send_email(target_client.email, "Взаимная симпатия!", message_to_target_client)
+
+    return {"message": "Mutual match!", "target_email": target_client.email}

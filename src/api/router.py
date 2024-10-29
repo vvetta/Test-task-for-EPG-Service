@@ -1,10 +1,10 @@
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Form, File, UploadFile, Depends, Response, HTTPException
+from fastapi import APIRouter, Form, File, UploadFile, Depends, Response, HTTPException, Request
 
-from src.api.utils import hash_password, add_watermark, encode_jwt
+from src.api.utils import hash_password, add_watermark, encode_jwt, get_current_user
 from src.api.database import get_session
-from src.api.crud import create_client_db, get_clients_db
+from src.api.crud import create_client_db, get_clients_db, create_match_db
 from src.api.schemas import CreateClientSchema, ClientSchema, LoginClientSchema, AuthTokenSchema
 
 
@@ -50,3 +50,15 @@ async def login(login_payload: LoginClientSchema,
 @router.get("/logout")
 async def logout(response: Response):
     response.delete_cookie("auth_token")
+
+
+@router.post("/{id}/match/")
+async def match(
+        id: int,
+        request: Request,
+        session: AsyncSession = Depends(get_session)) -> dict:
+
+    current_user = await get_current_user(request, session)
+
+    result = await create_match_db(id, current_user, session)
+    return result
