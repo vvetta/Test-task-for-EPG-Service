@@ -4,7 +4,7 @@ from pydantic import EmailStr, BaseModel
 
 class ClientSchema(BaseModel):
 
-    id: int
+    id: int | None
     email: EmailStr
     fio: str | None
     gender: Literal["male", "female"]
