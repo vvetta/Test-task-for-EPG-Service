@@ -20,7 +20,7 @@ def get_private_key() -> str:
 
 
 def get_public_key() -> str:
-    with open("shared_data/jwtRS256.key.pub", "r") as key:
+    with open("src/certs/jwtRS256.key.pub", "r") as key:
         return key.read()
 
 
