@@ -6,9 +6,10 @@ from src.api.database import BaseModel
 
 class Client(BaseModel):
 
-    fio = mapped_column(String(length=64), nullable=False)
+    first_name = mapped_column(String(length=64), nullable=True)
+    second_name = mapped_column(String(length=64), nullable=True)
     email = mapped_column(String(length=64), nullable=False, unique=True)
-    gender = mapped_column(String(length=10), nullable=False, default="не выбрано")
+    gender = mapped_column(String(length=10), nullable=True, default="не выбрано")
     photo = mapped_column(String(length=256), nullable=True)
 
     """

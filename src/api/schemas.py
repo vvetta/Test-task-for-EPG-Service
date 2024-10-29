@@ -6,7 +6,8 @@ class ClientSchema(BaseModel):
 
     id: int | None
     email: EmailStr
-    fio: str | None
+    first_name: str | None
+    last_name: str | None
     gender: Literal["male", "female"]
     photo: str | None
     longitude: float | None
