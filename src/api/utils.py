@@ -68,6 +68,8 @@ async def save_client_photo(photo: BytesIO, client_email: str) -> str:
     async with aiofiles.open(filepath, 'wb') as f:
         await f.write(photo.read())
 
+    filepath = f"/static/{client_email}.jpeg"
+
     return filepath
 
 
@@ -145,5 +147,5 @@ async def send_mutual_match_email(current_user: CreateClientSchema, target_clien
     return {"message": "Mutual match!", "target_email": target_client.email}
 
 
-def get_cache_key(sort_order: str, current_user, **kwargs) -> str:
+def get_cache_key(sort_order: str | None, current_user: CreateClientSchema | None, **kwargs) -> str:
     return f"{current_user.id if current_user else 'anon'}:{sort_order}:{kwargs}"

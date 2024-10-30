@@ -1,6 +1,5 @@
 from io import BytesIO
 from typing import List
-from functools import partial
 from datetime import datetime
 from fastapi import HTTPException, Request
 from sqlalchemy import select
@@ -8,12 +7,10 @@ from sqlalchemy import and_, desc, asc
 from cachetools import TTLCache, cached
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 from src.api.settings import DAILY_LIKE_LIMIT
 from src.api.models import Client, Match
 from src.api.schemas import ClientSchema, CreateClientSchema
 from src.api.utils import save_client_photo, calculate_distance, send_mutual_match_email, get_cache_key, decode_jwt
-
 
 client_cache = TTLCache(maxsize=100, ttl=60)
 
@@ -31,10 +28,11 @@ async def create_client_db(
         await session.commit()
         return ClientSchema.from_orm(client)
     except Exception as e:
-        raise HTTPException(status_code=403, detail="An error occurred while creating a new user.")
+        await session.rollback()
+        raise HTTPException(status_code=403, detail=f"An error occurred while creating a new user. {e}")
 
 
-@cached(cache=client_cache, key=partial(get_cache_key))
+@cached(cache=client_cache, key=lambda *args, **kwargs: get_cache_key(*args[1:], **kwargs))
 async def get_clients_db(
         session: AsyncSession,
         sort_order: str | None,
@@ -45,9 +43,8 @@ async def get_clients_db(
     filters = []
     if kwargs.get('email'):
         result = await session.execute(query.where(Client.email == kwargs['email']))
-        client = result.fetchone()
+        client = result.scalars().first()
         return CreateClientSchema.from_orm(client)
-
     if kwargs.get('gender'):
         filters.append(Client.gender == kwargs['gender'])
     if kwargs.get('first_name'):
@@ -77,9 +74,10 @@ async def get_clients_db(
 
         clients_in_range = [
             ClientSchema.from_orm(client) for client in clients
-            if client.latitude is not None and client.longitude is not None
-               and calculate_distance(current_user.latitude, current_user.longitude, client.latitude,
-                                      client.longitude) <= kwargs['distance']
+            if client.latitude is not None and client.longitude is not None and calculate_distance(
+                   current_user.latitude,
+                   current_user.longitude, client.latitude,
+                   client.longitude) <= kwargs['distance']
         ]
 
         return clients_in_range
@@ -105,7 +103,6 @@ async def create_match_db(
         id: int,
         current_user: CreateClientSchema | None,
         session: AsyncSession) -> dict:
-
     if current_user.id == id:
         raise HTTPException(status_code=403, detail="You can't evaluate yourself!")
 
@@ -116,18 +113,18 @@ async def create_match_db(
 
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     daily_likes_count = await session.execute(select(Match).where(
-            Match.user_id == current_user.id,
-            Match.time_created >= today_start
-        )
+        Match.user_id == current_user.id,
+        Match.time_created >= today_start
+    )
     )
 
-    if daily_likes_count.scalars().count() >= DAILY_LIKE_LIMIT:
+    if len(daily_likes_count.scalars().all()) >= DAILY_LIKE_LIMIT:
         raise HTTPException(status_code=400, detail="Daily like limit reached.")
 
     match = await session.execute(select(Match).where(
-            Match.user_id == current_user.id,
-            Match.target_user_id == target_client.id
-        )
+        Match.user_id == current_user.id,
+        Match.target_user_id == target_client.id
+    )
     )
     match = match.scalars().first()
 
@@ -142,10 +139,24 @@ async def create_match_db(
     mutual_match = await check_mutual_match(session, target_client, current_user)
 
     if mutual_match:
-        result = await send_mutual_match_email(current_user, target_client)
+        try:
+            result = await send_mutual_match_email(current_user, target_client)
+        except Exception:
+            return {'message': 'Сообщение должно было быть отправлено, но произошла ошибка!'}
         return result
 
     return {'message': 'Match sent!'}
+
+
+async def get_client_by_email(session: AsyncSession, email: str):
+    query = select(Client)
+    result = await session.execute(query.where(Client.email == email))
+    client = result.scalars().first()
+
+    if not client:
+        raise HTTPException(status_code=401, detail="User Not Found! Delete cookies!")
+
+    return CreateClientSchema.from_orm(client)
 
 
 async def get_current_user(request: Request, session: AsyncSession) -> CreateClientSchema | None:
@@ -154,10 +165,6 @@ async def get_current_user(request: Request, session: AsyncSession) -> CreateCli
     if not auth_token:
         return None
 
-    current_user = await get_clients_db(
-        session,
-        None,
-        None,
-        email=decode_jwt(auth_token)['email'])
+    current_user = await get_client_by_email(session, email=decode_jwt(auth_token)['email'])
 
     return current_user

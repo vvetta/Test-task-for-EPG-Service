@@ -9,10 +9,12 @@ services:
       - .env
     depends_on:
       - db
+    volumes:
+      - ./wait-for-it.sh:/wait-for-it.sh
     environment:
       - DATABASE_URL=postgresql+asyncpg://${PG_NAME}:${PG_PASSWORD}@db:5432/${PG_DB_NAME}
     command: >
-      sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
+      sh -c "./wait-for-it.sh db:5432 -- alembic revision --autogenerate -m 'Initial' && alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
 
   db:
     image: postgres:13

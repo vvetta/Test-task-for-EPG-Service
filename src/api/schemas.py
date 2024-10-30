@@ -13,6 +13,10 @@ class ClientSchema(BaseModel):
     longitude: float | None
     latitude: float | None
 
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
 
 class CreateClientSchema(ClientSchema):
 
@@ -24,7 +28,15 @@ class LoginClientSchema(BaseModel):
     email: EmailStr
     password: str
 
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
 
 class AuthTokenSchema(BaseModel):
 
     auth_token: str
+
+    class Config:
+        orm_mode = True
+        from_attributes = True

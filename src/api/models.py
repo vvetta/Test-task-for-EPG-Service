@@ -21,14 +21,14 @@ class Client(BaseModel):
     longitude = mapped_column(Float, nullable=True)
     latitude = mapped_column(Float, nullable=True)
 
-    given_matches = relationship("Match", foreign_keys="[Match.user_id]", back_populates="user")
-    received_matches = relationship("Match", foreign_keys="[Match.target_user_id]", back_populates="target_user")
+    given_matches = relationship("Match", foreign_keys="Match.user_id", back_populates="user")
+    received_matches = relationship("Match", foreign_keys="Match.target_user_id", back_populates="target_user")
 
 
 class Match(BaseModel):
 
-    user_id = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
-    target_user_id = mapped_column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
+    user_id = mapped_column(Integer, ForeignKey("client.id", ondelete="CASCADE"), nullable=False)
+    target_user_id = mapped_column(Integer, ForeignKey("client.id", ondelete="CASCADE"), nullable=False)
 
     __table_args__ = (UniqueConstraint("user_id", "target_user_id", name="unique_match"),)
 

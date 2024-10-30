@@ -1,7 +1,8 @@
 import uvicorn
 
 from datetime import datetime
-from typing import List, Literal
+from typing import List, Literal, Optional
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,13 +19,13 @@ app.include_router(client_router)
 
 @app.get("/list", response_model=List[ClientSchema])
 async def get_clients_list(
-        gender: Literal["male", "female"] | None,
-        first_name: str | None,
-        last_name: str | None,
-        distance: float | None,
-        time_created: datetime | None,
-        sort_order: Literal["desc", "asc"] | None,
         request: Request,
+        gender: Optional[Literal["male", "female"]] = None,
+        first_name: Optional[str] = None,
+        last_name: Optional[str] = None,
+        distance: Optional[float] = None,
+        time_created: Optional[datetime] = None,
+        sort_order: Optional[Literal["desc", "asc"]] = None,
         session: AsyncSession = Depends(get_session)) -> List[ClientSchema]:
 
     current_user = await get_current_user(request, session)
@@ -41,6 +42,8 @@ async def get_clients_list(
 
     return clients
 
+
+app.mount("/static", StaticFiles(directory="client_photos"), name="static")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
